@@ -8,29 +8,24 @@ import pandas as pd
 import time
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner="Loading the model...")
 def load_models(model_name):
-    model = MODELS[model_name](pretrained=True, progress=True,
-                                   num_classes=len(CLASSES), pretrained_backbone=True).to(DEVICE)
+    model = MODELS[model_name](pretrained=True, progress=True, num_classes=len(CLASSES), pretrained_backbone=True).to(DEVICE)
     # set inference mode
     model.eval()
 
     return model
 
-CLASSES = [
-    'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
-    'traffic light', 'fire hydrant', 'street sign', 'stop sign', 'parking meter', 'bench',
-    'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe',
-    'hat', 'backpack', 'umbrella', 'shoe', 'eye glasses', 'handbag', 'tie', 'suitcase',
-    'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove',
-    'skateboard', 'surfboard', 'tennis racket', 'bottle', 'plate', 'wine glass', 'cup',
-    'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli',
-    'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed',
-    'mirror', 'dining table', 'window', 'desk', 'toilet', 'door', 'tv', 'laptop', 'mouse',
-    'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator',
-    'blender', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush',
-    'hair brush'
-]
+
+@st.cache_data
+def load_coco_labels(filename):
+    with open(filename, 'r') as file:
+        lines = [line.strip() for line in file.readlines()]
+
+    return lines
+
+
+CLASSES = load_coco_labels("pages/data/coco_labels.txt")
 
 COLORS = np.random.uniform(0, 255, size=(len(CLASSES), 3))
 
@@ -42,13 +37,12 @@ MODELS = {
     "retinanet": detection.retinanet_resnet50_fpn
 }
 
-# model = load_models("frcnn-resnet")
-# model = load_models("frcnn-mobilenet")
-# model = load_models("retinanet")
-
 # Create a session state to store the DataFrame
 if 'detection_df' not in st.session_state:
     st.session_state.detection_df = pd.DataFrame()
+
+if 'full_analysis' not in st.session_state:
+    st.session_state.full_analysis = pd.DataFrame()
 
 st.title("Object Detection with Streamlit")
 
@@ -66,9 +60,13 @@ if image:
         index=0
     )
 
+    analysis_results = {'Image': image.name}
+
     if st.button("Perform object detection"):
 
         model = load_models(selected_model)
+
+        analysis_results['Model'] = selected_model
 
         with st.spinner("Object detection in progress..."):
 
@@ -125,6 +123,14 @@ if image:
                         'Confidence': "{:.2f}%".format(float(confidence * 100)),
                         # Add more fields as needed
                     }
+                    #
+                    # image_detection_info = {
+                    #     'Image': image.name,
+                    #     'Model': selected_model,
+                    #     'Label': CLASSES[idx - 1],
+                    #     'Confidence': "{:.2f}%".format(float(confidence * 100))
+                    #
+                    # }
 
                     # add dictionary to a list
                     data_rows.append(detection_info)
@@ -133,6 +139,8 @@ if image:
             end_time = time.time()
             elapsed_time = end_time - start_time
             st.toast(f"Object detection took {elapsed_time:.4f} seconds")
+
+            analysis_results['Detection time'] = elapsed_time
 
         # show the image with detecton results
         image_placeholder = st.image(orig, channels="RGB", use_column_width=True)
@@ -143,3 +151,14 @@ if image:
 
         # add this dataframe to the Session state to perform further processing in the other page
         st.session_state.detection_df = df
+
+        analysis_results['Labels_Confidence'] = data_rows
+
+        # st.write(analysis_results
+
+        full_analysis_df = pd.DataFrame(analysis_results)
+
+        consolidated_df = full_analysis_df.groupby(['Image', 'Model', 'Detection time']).agg(lambda x: ', '.join(x.astype(str))).reset_index()
+        st.dataframe(consolidated_df)
+
+        st.session_state.full_analysis = consolidated_df
