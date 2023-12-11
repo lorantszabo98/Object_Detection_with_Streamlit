@@ -35,6 +35,7 @@ MODELS = {
     "frcnn-resnet": detection.fasterrcnn_resnet50_fpn,
     "frcnn-mobilenet": detection.fasterrcnn_mobilenet_v3_large_320_fpn,
     "retinanet": detection.retinanet_resnet50_fpn
+    # you can add more models, if you want
 }
 
 # Create a session state to store the DataFrame
@@ -54,13 +55,20 @@ image_placeholder = st.empty()
 
 if image:
 
+    # dynamically update the selectbox from the MODELS dictionary
+    model_names = list(MODELS.keys())
+
     selected_model = add_selectbox = st.selectbox(
         "Which model do you want to use for detection?",
-        ("frcnn-resnet", "frcnn-mobilenet", "retinanet"),
+        model_names,
         index=0
     )
 
-    analysis_results = {'Image': image.name}
+    confidence_threshold = st.slider("Please set the confidence threshold value (%)", 0, 100, 50)
+    confidence_threshold = confidence_threshold/100
+
+    analysis_results = {'Image': image.name, 'Model': [], 'Detection time': [],
+                        'Confidence threshold': confidence_threshold, 'Labels_Confidence': []}
 
     if st.button("Perform object detection"):
 
@@ -99,7 +107,7 @@ if image:
                 confidence = detections["scores"][i]
                 # filter out weak detections by ensuring the confidence is
                 # greater than the minimum confidence
-                if confidence > 0.5:
+                if confidence > confidence_threshold:
                     # extract the index of the class label from the detections,
                     # then compute the (x, y)-coordinates of the bounding box
                     # for the object
@@ -123,14 +131,6 @@ if image:
                         'Confidence': "{:.2f}%".format(float(confidence * 100)),
                         # Add more fields as needed
                     }
-                    #
-                    # image_detection_info = {
-                    #     'Image': image.name,
-                    #     'Model': selected_model,
-                    #     'Label': CLASSES[idx - 1],
-                    #     'Confidence': "{:.2f}%".format(float(confidence * 100))
-                    #
-                    # }
 
                     # add dictionary to a list
                     data_rows.append(detection_info)
@@ -149,16 +149,19 @@ if image:
         df = pd.DataFrame(data_rows)
         st.dataframe(df)
 
+        # df.to_csv("pages/data/data.csv", mode='a', header=False, index=False)
+
         # add this dataframe to the Session state to perform further processing in the other page
         st.session_state.detection_df = df
 
         analysis_results['Labels_Confidence'] = data_rows
 
-        # st.write(analysis_results
 
         full_analysis_df = pd.DataFrame(analysis_results)
 
-        consolidated_df = full_analysis_df.groupby(['Image', 'Model', 'Detection time']).agg(lambda x: ', '.join(x.astype(str))).reset_index()
+        consolidated_df = full_analysis_df.groupby(['Image', 'Model', 'Detection time', 'Confidence threshold']).agg(lambda x: ', '.join(x.astype(str))).reset_index()
         st.dataframe(consolidated_df)
 
-        st.session_state.full_analysis = consolidated_df
+        consolidated_df.to_csv("pages/data/data_full.csv", mode='a', header=False, index=False)
+
+
