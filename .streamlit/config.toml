@@ -2,6 +2,5 @@
 enableStaticServing = true
 
 [theme]
-primaryColor="#3498db"  # A nice blue color
-textColor="#2c3e50"  # Dark text color
+primaryColor="#3498db"
 font="sans serif"
