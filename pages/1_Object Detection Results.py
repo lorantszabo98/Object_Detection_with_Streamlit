@@ -2,11 +2,11 @@ import streamlit as st
 import pandas as pd
 import ast
 import plotly.express as px
-from streamlit_elements import elements, mui, html
+from streamlit_extras.grid import grid
+import os
 
 
 def load_data(filepath):
-
     df = pd.read_csv(filepath)
     return df
 
@@ -17,7 +17,6 @@ def save_data(filename, new_dataframe):
 
 st.title("Object Detection Results ")
 tab1, tab2 = st.tabs(['Number of detections', 'Model comparison'])
-
 
 # # load the dataframe
 loaded_dataframe = load_data("pages/data/data.csv")
@@ -45,38 +44,47 @@ if not detection_df.empty:
 # Sort the DataFrame based on the 'Number of Detections' column
 loaded_dataframe = loaded_dataframe.sort_values(by='Number of Detections', ascending=False)
 
-
 # Plot the bar chart using Plotly Express
 fig = px.bar(loaded_dataframe, x='Label', y='Number of Detections',
              color='Label',
              labels={'Number of Detections': 'Number of Detections'},
              title='Number of detections of each label',
              template='plotly',
-             height=500,)
+             height=500, )
 
 with tab1:
     st.info("On this tab you can see all detections per label summarised.")
-    st.dataframe(loaded_dataframe, use_container_width=True)
+    st.dataframe(loaded_dataframe, use_container_width=True, hide_index=True)
 
     # Display the chart
-    st.plotly_chart(fig, theme="streamlit")
-
+    st.plotly_chart(fig)
 
 # clear the Session state
 st.session_state.detection_df = []
 
 save_data("pages/data/data.csv", loaded_dataframe)
 
-
 ########################
 
 
 loaded_dataframe_full = load_data("pages/data/data_full.csv")
 
+base_path = "http://localhost:8501/app/static/"
+loaded_dataframe_full['Displayed Image'] = loaded_dataframe_full['Image'].apply(lambda x: os.path.join(base_path, x))
+
+loaded_dataframe_full.insert(0, 'Displayed Image', loaded_dataframe_full.pop('Displayed Image'))
+
 with tab2:
     st.info("On this tab you can see how many objects each model found in the detection, image by image.")
-    st.dataframe(loaded_dataframe_full, use_container_width=True)
-# save_data("pages/data/data_full.csv", final_dataframe)
+    st.dataframe(
+        loaded_dataframe_full,
+        column_config={"Displayed Image": st.column_config.ImageColumn(
+            "Displayed Image",
+            help="The images in which the object detection took place"
+        )
+        },
+        use_container_width=True,
+        hide_index=True)
 
 # Convert the string representations of lists into actual lists of dictionaries
 loaded_dataframe_full['Labels_Confidence'] = loaded_dataframe_full['Labels_Confidence'].apply(ast.literal_eval)
@@ -118,12 +126,9 @@ for index, row in unique_rows.iterrows():
 plotting_df = pd.DataFrame(data_for_plotting)
 
 # Plot the bar chart
-fig = px.bar(plotting_df, x='Image', y='Total Labels', title="Model comparison", color='Model', barmode='group', hover_data=['Detection Time'], labels={'Detection Time': 'Detection Time'})
+fig = px.bar(plotting_df, x='Image', y='Total Labels', title="Model comparison", color='Model', barmode='group',
+             hover_data=['Detection Time'], labels={'Detection Time': 'Detection Time'})
 
 with tab2:
     # Display the chart
     st.plotly_chart(fig)
-
-
-
-

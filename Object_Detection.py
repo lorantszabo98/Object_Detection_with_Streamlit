@@ -6,6 +6,8 @@ import streamlit as st
 from PIL import Image, ImageOps
 import pandas as pd
 import time
+from streamlit_extras.grid import grid
+import os
 
 
 @st.cache_resource(show_spinner="Loading the model...")
@@ -53,24 +55,28 @@ image = st.file_uploader("Please upload a photo!", accept_multiple_files=False, 
 
 image_placeholder = st.empty()
 
+grid_for_detection_settings = grid(2, 3, vertical_align="center")
+
 if image:
 
     # dynamically update the selectbox from the MODELS dictionary
     model_names = list(MODELS.keys())
 
-    selected_model = add_selectbox = st.selectbox(
+    selected_model = grid_for_detection_settings.selectbox(
         "Which model do you want to use for detection?",
         model_names,
         index=0
     )
 
-    confidence_threshold = st.slider("Please set the confidence threshold value (%)", 0, 100, 50)
+    image_name = image.name
+
+    confidence_threshold = grid_for_detection_settings.slider("Please set the confidence threshold value (%) (For model comparison, leave as default)", 0, 100, 50)
     confidence_threshold = confidence_threshold/100
 
-    analysis_results = {'Image': image.name, 'Model': [], 'Detection time': [],
+    analysis_results = {'Image': image_name, 'Model': [], 'Detection time': [],
                         'Confidence threshold': confidence_threshold, 'Labels_Confidence': []}
-
-    if st.button("Perform object detection"):
+    grid_for_detection_settings.empty()
+    if grid_for_detection_settings.button("Perform object detection"):
 
         model = load_models(selected_model)
 
@@ -82,6 +88,12 @@ if image:
 
             image = Image.open(image)
             image = ImageOps.exif_transpose(image)
+
+            filename = f"static/{image_name}"
+
+            if not os.path.exists(filename):
+
+                image.save(filename)
 
             image = np.array(image)
 
@@ -145,9 +157,11 @@ if image:
         # show the image with detecton results
         image_placeholder = st.image(orig, channels="RGB", use_column_width=True)
 
+        grid_for_detection_results = grid([2, 4])
+
         # show the detection results in a dataframe
         df = pd.DataFrame(data_rows)
-        st.dataframe(df)
+        grid_for_detection_results.dataframe(df)
 
         # df.to_csv("pages/data/data.csv", mode='a', header=False, index=False)
 
@@ -156,11 +170,10 @@ if image:
 
         analysis_results['Labels_Confidence'] = data_rows
 
-
         full_analysis_df = pd.DataFrame(analysis_results)
 
         consolidated_df = full_analysis_df.groupby(['Image', 'Model', 'Detection time', 'Confidence threshold']).agg(lambda x: ', '.join(x.astype(str))).reset_index()
-        st.dataframe(consolidated_df)
+        grid_for_detection_results.dataframe(consolidated_df)
 
         consolidated_df.to_csv("pages/data/data_full.csv", mode='a', header=False, index=False)
 
