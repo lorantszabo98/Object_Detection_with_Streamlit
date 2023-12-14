@@ -36,7 +36,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 MODELS = {
     "frcnn-resnet": detection.fasterrcnn_resnet50_fpn,
     "frcnn-mobilenet": detection.fasterrcnn_mobilenet_v3_large_320_fpn,
-    "retinanet": detection.retinanet_resnet50_fpn
+    "retinanet": detection.retinanet_resnet50_fpn,
+    "ssd_lite": detection.ssdlite320_mobilenet_v3_large
     # you can add more models, if you want
 }
 
