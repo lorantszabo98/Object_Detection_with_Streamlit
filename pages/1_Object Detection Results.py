@@ -69,11 +69,15 @@ save_data("pages/data/data.csv", loaded_dataframe)
 
 loaded_dataframe_full = load_data("pages/data/data_full.csv")
 
+# Init the path where we store the pictures with Static file serving (You should change this if you have a different path)
 base_path = "http://localhost:8501/app/static/"
+# Create the full path with the Image column, where the filename is stored
 loaded_dataframe_full['Displayed Image'] = loaded_dataframe_full['Image'].apply(lambda x: os.path.join(base_path, x))
 
+# move Displayed Image colum to the first column of the dataframe
 loaded_dataframe_full.insert(0, 'Displayed Image', loaded_dataframe_full.pop('Displayed Image'))
 
+# Displaying the dataframe with the use of st.column_config.ImageColumn to display the corresponding images
 with tab2:
     st.info("On this tab you can see how many objects each model found in the detection, image by image.")
     st.dataframe(
@@ -108,6 +112,7 @@ for index, row in unique_rows.iterrows():
         label = labels_confidence.get('Label')  # Use get() method to avoid KeyError
         if label is not None:
             all_labels.append(label)
+
     else:
         for entry in labels_confidence:
             if isinstance(entry, dict):
@@ -125,10 +130,14 @@ for index, row in unique_rows.iterrows():
 # Create a DataFrame from the collected data
 plotting_df = pd.DataFrame(data_for_plotting)
 
-# Plot the bar chart
-fig = px.bar(plotting_df, x='Image', y='Total Labels', title="Model comparison", color='Model', barmode='group',
-             hover_data=['Detection Time'], labels={'Detection Time': 'Detection Time'})
+# handle if the dataframe is empty
+if 'Image' in plotting_df.columns:
 
-with tab2:
-    # Display the chart
-    st.plotly_chart(fig)
+    # Plot the bar chart
+    fig = px.bar(plotting_df, x='Image', y='Total Labels', title="Model comparison", color='Model', barmode='group',
+                 hover_data=['Detection Time'], labels={'Detection Time': 'Detection Time'})
+
+    with tab2:
+        # Display the chart
+        st.plotly_chart(fig)
+
